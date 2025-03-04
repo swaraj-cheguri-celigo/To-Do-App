@@ -3,17 +3,37 @@ const Todo = require('../models/Todo');
 const router = express.Router();
 
 // 1. Get all todos
-router.get('/todos', async (req, res) => {
+router.get('/todos', async (req, res, next) => {
   try {
-    const todos = await Todo.find();
-    res.json(todos);
+    let { page = 1, limit = 10 } = req.query;
+
+    // Convert query params to integers
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    // Ensure valid values
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(limit) || limit < 1) limit = 10;
+
+    const totalTodos = await Todo.countDocuments(); // Total count of todos
+    const todos = await Todo.find()
+      .skip((page - 1) * limit) // Skip previous pages
+      .limit(limit); // Limit per page
+
+    res.json({
+      page,
+      limit,
+      totalPages: Math.ceil(totalTodos / limit),
+      totalTodos,
+      todos,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 });
 
 // 2. Create a new todo
-router.post('/todos', async (req, res) => {
+router.post('/todos', async (req, res,next) => {
   const { title, description } = req.body;
   const newTodo = new Todo({
     title,
@@ -24,22 +44,22 @@ router.post('/todos', async (req, res) => {
     const todo = await newTodo.save();
     res.status(201).json(todo);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 });
 
 // 3. Get todo by id
-router.get('/todos/:id', async (req, res) => {
+router.get('/todos/:id', async (req, res,next) => {
   const { id } = req.params;
   try {
     const todo = await Todo.findById(id);
     if (!todo) return res.status(404).json({ message: 'Todo not found' });
     res.json(todo);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 });
-router.put('/api/todos/:id', async (req, res) => {
+router.put('/api/todos/:id', async (req, res,next) => {
     const todoId = req.params.id;
     const { title, completed } = req.body;
   
@@ -54,8 +74,7 @@ router.put('/api/todos/:id', async (req, res) => {
       // Return the updated todo
       res.json(updatedTodo);
     } catch (error) {
-      console.error('Error updating todo:', error);
-      res.status(500).json({ error: 'Server error' });
+      next(error);
     }
   });
 module.exports = router;
