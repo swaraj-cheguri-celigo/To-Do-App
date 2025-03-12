@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const todoRoutes = require('./routes/todoRoutes');
+const authRoutes = require('./routes/authRoutes');
 const errorHandler = require('./middlewares/errorHandler');
 const app = express();
 const port = 3000;
@@ -20,6 +21,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/todoApp', {
 
 // Routes
 app.use(logger);
+app.use('/api', authRoutes);
 app.use('/api', todoRoutes);
 app.use(errorHandler);
 // Start server

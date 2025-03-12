@@ -1,11 +1,11 @@
 const express = require('express');
 const Todo = require('../models/Todo');
 const router = express.Router();
-
+const authMiddleware = require('../middlewares/authMiddleware');
 // 1. Get all todos
-router.get('/todos', async (req, res, next) => {
+router.get('/todos',authMiddleware, async (req, res, next) => {
   try {
-    let { page = 1, limit = 10 } = req.query;
+    let { page = 1, limit = 10,search } = req.query;
 
     // Convert query params to integers
     page = parseInt(page);
@@ -15,8 +15,17 @@ router.get('/todos', async (req, res, next) => {
     if (isNaN(page) || page < 1) page = 1;
     if (isNaN(limit) || limit < 1) limit = 10;
 
+    const query = {};
+
+    // 🔍 If "search" is provided, filter by title or description
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } }, // Case-insensitive search
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
     const totalTodos = await Todo.countDocuments(); // Total count of todos
-    const todos = await Todo.find()
+    const todos = await Todo.find(query)
       .skip((page - 1) * limit) // Skip previous pages
       .limit(limit); // Limit per page
 
@@ -33,7 +42,7 @@ router.get('/todos', async (req, res, next) => {
 });
 
 // 2. Create a new todo
-router.post('/todos', async (req, res,next) => {
+router.post('/todos',authMiddleware, async (req, res,next) => {
   const { title, description } = req.body;
   const newTodo = new Todo({
     title,
@@ -49,7 +58,7 @@ router.post('/todos', async (req, res,next) => {
 });
 
 // 3. Get todo by id
-router.get('/todos/:id', async (req, res,next) => {
+router.get('/todos/:id',authMiddleware, async (req, res,next) => {
   const { id } = req.params;
   try {
     const todo = await Todo.findById(id);
@@ -59,7 +68,7 @@ router.get('/todos/:id', async (req, res,next) => {
     next(err);
   }
 });
-router.put('/api/todos/:id', async (req, res,next) => {
+router.put('/api/todos/:id',authMiddleware, async (req, res,next) => {
     const todoId = req.params.id;
     const { title, completed } = req.body;
   
